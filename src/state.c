@@ -53,6 +53,7 @@ bool update_sensor_state(const uint8_t line, const sample_t latest, feedback_mes
 
     // SENSOR STATE PROPERTIES
     const bool is_wet = latest.reading >= s->threshold;
+    const bool is_closed = v->last_open < v->last_close && v->last_close <= latest.stamp;
 
     sample_t *const matching_sample = is_wet ? &s->last_wet : &s->last_dry;
     sample_t *const opposite_sample = is_wet ? &s->last_dry : &s->last_wet;
@@ -63,18 +64,8 @@ bool update_sensor_state(const uint8_t line, const sample_t latest, feedback_mes
     const unsigned rolling_avg = ((unsigned) matching_sample->reading + latest.reading) / 2;
 
     // GENERATE FEEDBACK MESSAGE
-    bool valid_feedback_message =
-            // trigger on drying edge
-            !is_wet && just_transitioned &&
-            // confirm necessary events have all happened
-            v->last_open && v->last_close &&
-            s->last_dry.stamp && s->last_wet.stamp &&
-            latest.stamp &&
-            // confirm valid order of events
-            v->last_open < v->last_close &&
-            v->last_close < latest.stamp;
-
-    if (valid_feedback_message)
+    const bool send_feedback = is_closed && just_transitioned && !is_wet;
+    if (send_feedback)
         *msg = (feedback_message_t) {
                 .line = line,
                 .capacitance_before = s->last_dry.reading,
@@ -90,7 +81,7 @@ bool update_sensor_state(const uint8_t line, const sample_t latest, feedback_mes
     matching_sample->reading = first_time_in_state || just_transitioned ?
                                latest.reading : rolling_avg;
 
-    return valid_feedback_message;
+    return send_feedback;
 }
 
 void update_valve_state(uint8_t line, time_t stamp, valve_position_t position) {
