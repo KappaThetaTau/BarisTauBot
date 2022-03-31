@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>BarisTau Bot</title>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+	<link rel="stylesheet" type="text/css" href="css/admin.css">
+</head>
+<body>
+<div class="header">
+	<h1>Admin Panel</h1>
+	<p>Status: Offline</p>
+</div>
+<div class="container"></div>
+<button class="update" onclick="update()">Push Changes</button>
+<button class="pause" onclick="alert('todo')">Pause Orders</button>
+<div class="footer">
+	<p>Text Andrew with questions <a style="text-decoration: underline; color: inherit;" href="sms:1-630-545-2222">+1 (630) 545-2222</a></p>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var socket = io();
+const NUM_BOTTLES = 9;
+var container = document.querySelector('.container');
+
+socket.emit('fetch all ingredients', ingredients => {
+	console.log(ingredients);
+	for (var i = 0; i < NUM_BOTTLES; i++) {
+		let n = i + 1;
+		var selectHTML = `<span><span>Bottle ${n}: </span><select name="bottle${n}" id="bottle${n}"><option value=''>--- Empty ---</option></span>`;
+		for (x of ingredients) {
+			selectHTML += `<option>${x}</option>`;
+		}
+		selectHTML += `</select><br>`;
+		container.innerHTML += selectHTML;
+	}
+});
+
+socket.on('bottle statuses', bottles => {
+	window.bottles = bottles;
+	for (let key of Object.keys(bottles)) {
+		let select = document.querySelector(`[name=bottle${key}]`);
+		let opts = Array.from(select.options);
+		for (let opt of opts) {
+			if (opt.value == bottles[key]) {
+				opt.selected = true;
+				break;
+			}
+		}
+	}
+});
+
+function update() {
+	for (let key of Object.keys(bottles)) {
+		let select = document.querySelector(`[name=bottle${key}]`);
+		let opt = select.selectedOptions[0];
+		bottles[key] = opt.value;
+	}
+	socket.emit('update bottles', bottles);
+}
+</script>
+</body>
+</html>
