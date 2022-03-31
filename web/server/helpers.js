@@ -11,7 +11,7 @@ function generateUID(ids) {
 }
 
 function orderExists(orderID) {
-	console.log(orders);
+	// console.log(orders);
 	return !!orders[orderID];
 }
 module.exports = {generateUID, UID_REGEX_PATTERN, orderExists};

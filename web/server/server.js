@@ -2,24 +2,15 @@ const twilio = require('./twilio.js');
 const {generateUID, UID_REGEX_PATTERN, orderExists} = require('./helpers.js');
 const express = require('express');
 const app = express();
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require('socket.io');
+const io = new Server(server);
 const port = 3000;
 
-// orders = {
-//   'Chjo': {
-//     user: '+16305452222',
-//     status: 'created'
-//   }
-// }
-// ordersByUser = {
-//   '+16305452222': ['Chjo']
-// }
 orders = {};
 ordersByUser = {};
-ingredients = {
-  'OJ': {},
-  'Milk': {}
-}
-ingredient_names = Object.keys(ingredients);
+ingredients = ['Nesquik Powder', 'Milk', 'Orange Juice'];
 
 app.use(express.json());
 app.use(express.urlencoded({extended:false}))
@@ -29,32 +20,33 @@ app.use(express.static('../public'));
 app.get(`/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
   let orderID = req.params.orderID;
   if (!orderExists(orderID)) return res.sendStatus(404);
-  res.send(orders[orderID]);
+  // res.send(orders[orderID]);
+  res.sendFile(`index.html`, { root: `${__dirname}/../public` });
 });
 
 app.post(`/order/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
   let orderID = req.params.orderID;
   let [drinkName, drinkIngredients] = [req.body.name, req.body.ingredients];
-  console.log(orderID, drinkName, drinkIngredients);
-  if (!orderExists(orderID) || typeof drinkName !== 'string' || typeof drinkIngredients !== 'object') return res.sendStatus(400);
+  if (!orderExists(orderID) || typeof drinkName !== 'string' || !Array.isArray(drinkIngredients)) return res.status(400).send('Request not formatted correctly');
   let ratioSum = 0;
-  drinkIngredients = drinkIngredients.map(x => {
+  drinkIngredients = drinkIngredients.filter(x => x.name && x.ratio).map(x => { return { name: x.name, ratio: x.ratio } });
+  for (x of drinkIngredients) {
     let name = x.name;
     let ratio = x.ratio;
     ratioSum += ratio;
     // 'ratio' key must be a number with at most 2 decimal places (to avoid floating point errors with sum)
     if (!ratio || isNaN(ratio) || ratio != ratio.toFixed(2)) return res.sendStatus(400);
-    // 'name' key must be a valid ingredient
-    if (!name || !ingredient_names.includes(name)) return res.sendStatus(400);
-    if (ingredients[name].empty) return res.sendStatus(417);
-    return {name, ratio}; // re-assigning drinkIngredients to remove possible extra keys
-  });
-  if (ratioSum != 1) return res.sendStatus(400); 
+    if (!name) return res.status(400).send('Drink name not supplied');
+    if (!ingredients.includes(name)) return res.status(417).send('One or more of the ingredients are out of stock');
+  }
+  if (!drinkIngredients.length) return res.status(400).send('No ingredients supplied');
+  if (ratioSum != 1) return res.status(400).send('Ingredient ratios do not sum to 100%');
   orders[orderID].drink = {
     name: drinkName,
-    ingredients: drinkIngredients
+    ingredients: drinkIngredients ? drinkIngredients : ingredients[drinkName]
   };
   orders[orderID].status = 'created';
+  // console.log('New order:', orderID, drinkName, drinkIngredients);
   res.send(orders);
 });
 
@@ -86,6 +78,11 @@ app.post('/sms', (req, res) => {
   res.end(twilio.generateReply(response));
 });
 
-app.listen(port, () => {
+io.on('connection', socket => {
+  console.log('A user connected.');
+  socket.emit('available ingredients', ingredients);
+});
+
+server.listen(port, () => {
   console.log(`Listening on port ${port}`);
 });
