@@ -1,1 +1,136 @@
-🤠
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>BarisTau Bot</title>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+	<link rel="stylesheet" type="text/css" href="css/checkmark.css">
+	<link rel="stylesheet" type="text/css" href="../css/style.css">
+	<link rel="stylesheet" type="text/css" href="../css/checkmark.css">
+</head>
+<body>
+<div class="header">
+	<h1>BarisTau Bot</h1>
+	<p>Engineering Open House 2022</p>
+</div>
+<div class="receipt-container" style="display: none;">
+	<div class="checkmark-wrapper">
+		<svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+        	<circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none" />
+        	<!-- <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" /> -->
+        	<path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+    	</svg>
+	</div>
+	<h1>Thank you for your order!</h1>
+	<p>Look out for a text with order updates, or text STATUS to 231-BAR-ISTA.</p>
+</div>
+<div class="menu-container">
+  <h2 style="margin-top: 0;">Drinks</h2>
+  <input type="text" id="search" onkeyup="search()" placeholder="Search.." title="Type in a category">
+  <ul id="menu"></ul>
+  <div class="btn-container">
+  	<button class="submit" onclick="submit()">Submit Order</button>
+  </div>
+</div>
+<div class="footer">
+	<p><a href="https://kappathetatau.org/" style="text-decoration: none; color: inherit;">made with ❤️ from Kappa Theta Tau Projects Committee</a></p>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+drinks = {
+  'Shirley Temple': [{name: 'Ginger Ale', ratio: 0.95}, {name: 'Grenadine', ratio: 0.05}],
+  'Chocolate Milk': [{name: 'Nesquik Powder', ratio: 0.1}, {name: 'Milk', ratio: 0.9}],
+  'Virgin Piña Colada': [{name: 'Coconut Cream', ratio: 0.25}, {name: 'Pineapple Juice', ratio: 0.75}],
+  'Coldbrew Coffee': [{name: 'Instant Coffee Mix', ratio: 1.00}],
+  'Milk': [{name: 'Milk', ratio: 1.00}],
+  'Orange Juice': [{name: 'Orange Juice', ratio: 1.00}]
+}
+window.ORDER_ID = false; // don't delete
+window.ORDER_ID = window.location.pathname.split('/')[1].match(/^([a-zA-Z0-9]{4})$/)[1];
+
+var socket = io();
+var menu = document.querySelector('#menu');
+
+socket.on('available ingredients', ingredients => {
+	console.log(ingredients);
+	while (menu.firstChild) menu.firstChild.remove();
+	let availableDrinks = Object.keys(drinks).filter(x => {
+		let ingredients_ = drinks[x].map(i => i.name);
+		for (i of ingredients_) {
+			if (!ingredients.includes(i)) return false;
+		}
+		return true;
+	});
+	for (drink of availableDrinks) {
+		menu.innerHTML += `<li><a href="#">${drink}</a></li>`;
+	}
+	var items = menu.children;
+	for (i in items) {
+		let item = items[i];
+		item.addEventListener('click', () => {
+			for (item_ of items) {
+				item_.classList.remove('selected');
+			}
+			item.classList.add('selected');
+		});
+	}
+	console.log(availableDrinks);
+});
+
+function search() {
+  var input, filter, ul, li, a, i;
+  input = document.getElementById("search");
+  filter = input.value.toUpperCase();
+  ul = document.getElementById("menu");
+  li = ul.getElementsByTagName("li");
+  for (i = 0; i < li.length; i++) {
+    a = li[i].getElementsByTagName("a")[0];
+    if (a.innerHTML.toUpperCase().indexOf(filter) > -1) {
+      li[i].style.display = "";
+    } else {
+      li[i].style.display = "none";
+    }
+  }
+}
+
+function selectedDrink() {
+	return document.querySelector('#menu li.selected') ? document.querySelector('#menu li.selected').innerText : false;
+}
+
+async function submit() {
+	if (!ORDER_ID) return;
+
+	var c1 = document.querySelector('.receipt-container');
+	var c2 = document.querySelector('.menu-container');
+
+	var drinkName = selectedDrink();
+	if (!drinkName) return;
+
+	var req = await fetch(`/order/${ORDER_ID}`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			name: drinkName,
+			ingredients: drinks[drinkName]
+		})
+	});
+	var res = await req.json();
+	if (!req.ok) {
+		// Note: this doesn't reset1
+		c1.children[0].style.display = 'none';
+		c1.children[1].innerText = 'Error';
+		c1.children[2].innerText = res;
+	}
+
+	toggleVisibility(c1, 'flex');
+	toggleVisibility(c2);
+}
+
+function toggleVisibility(el, disp='block') { el.style.display = el.style.display == 'none' ? disp : 'none'; }
+</script>
+</body>
+</html>

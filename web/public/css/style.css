@@ -1,0 +1,108 @@
+@media only screen and (max-width: 600px) {
+  * {
+    text-align: center;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: rgba(101, 26, 20, 0.3);
+  font-family: sans-serif;
+}
+
+.header {
+  padding: 0.2rem;
+  padding-left: 1rem;
+  /*text-align: center;*/
+  background: rgb(101, 26, 20);
+  color: rgb(208, 163, 63);
+  font-size: 1rem;
+}
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100vw;
+  padding: 0.2rem;
+  padding-left: 1rem;
+  /*text-align: center;*/
+  background: rgb(101, 26, 20);
+  color: rgb(208, 163, 63);
+  font-size: 1rem;
+}
+
+.menu-container {
+  background-color: rgba(255, 255, 255, 0.5);
+  padding: 1rem;
+  /*border: 2px solid gray;*/
+  /*height: 20vh;*/
+  /*overflow: scroll;*/
+}
+
+.receipt-container {
+  background-color: rgba(255, 255, 255, 0.5);
+  padding: 1rem;
+  height: calc(20vh + 11rem - 1px);
+  /*position: fixed;*/
+  /*opacity: 0.5;*/
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  /*color: rgb(208, 163, 63);*/
+  color: rgb(101, 26, 20);
+}
+
+.receipt-container div {
+  font-size: 3rem;
+}
+
+.btn-container {
+  display: flex;
+  justify-content: center;
+}
+
+#search {
+  width: 100%;
+  font-size: 18px;
+  padding: 11px;
+  border: 1px solid #ddd;
+}
+
+#menu {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  height: 20vh;
+  overflow: scroll;
+}
+
+#menu li a {
+  padding: 12px;
+  text-decoration: none;
+  color: black;
+  display: block
+}
+
+#menu li.selected {
+  background-color: #aaa!important;
+}
+
+#menu li:hover {
+  background-color: #eee;
+}
+
+.submit {
+  background: rgb(208, 163, 63);
+  color: rgb(101, 26, 20);
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  cursor: pointer;
+}
