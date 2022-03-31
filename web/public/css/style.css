@@ -96,7 +96,7 @@ body {
   background-color: #eee;
 }
 
-.submit {
+button {
   background: rgb(208, 163, 63);
   color: rgb(101, 26, 20);
   border: none;

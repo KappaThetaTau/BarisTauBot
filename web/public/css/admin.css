@@ -1,0 +1,21 @@
+/*.container {*/
+/*}*/
+
+.container span {
+	/*background: yellow;*/
+	margin: 0.25rem;
+}
+
+.container span select {
+	margin: 0.25rem;
+	padding: 0.25rem;
+}
+
+button.update {
+	margin: 0.25rem;
+}
+
+button.pause {
+  background: rgb(101, 26, 20);
+  color: rgb(208, 163, 63);
+}
