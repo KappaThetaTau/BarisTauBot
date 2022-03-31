@@ -19,11 +19,6 @@ typedef struct sample {
     time_t stamp;
 } sample_t;
 
-typedef struct line_hardware {
-    const uint8_t valve_pin;
-    const uint8_t sensor_pin;
-} line_hardware_t;
-
 typedef struct line_state {
     struct line_valve {
         time_t last_open;

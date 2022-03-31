@@ -5,7 +5,7 @@
 #ifndef BARISTAUBOT_PROTOCOL_H
 #define BARISTAUBOT_PROTOCOL_H
 
-#include <cstdint>
+#include "stdint.h"
 
 typedef packed_struct pour_message {
     uint8_t line;
