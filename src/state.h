@@ -5,7 +5,6 @@
 #ifndef BARISTAUBOT_STATE_H
 #define BARISTAUBOT_STATE_H
 
-#include <stdbool.h>
 #include "types.h"
 #include "protocol.h"
 

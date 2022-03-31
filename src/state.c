@@ -2,20 +2,10 @@
 // Created by Kunal Sheth on 3/29/22.
 //
 
-// all capacitive pins:
-// 0, 2, 4, 12, 13, 14, 15, 27, 32, 33
-
-// all servo pins:
-// 2, 4, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33
-
-// servo - cap:
-// 5 (might be buggy, weak pullup)
-// 16, 17, 18, 19, 21, 22, 23, 25, 26
-
 #include "state.h"
 
 #define DEFAULT_LINE_STATE (line_state_t) {.sensor.threshold = 50}
-static line_state_t lines[10] = {
+static line_state_t lines[NUM_LINES] = {
         DEFAULT_LINE_STATE,
         DEFAULT_LINE_STATE,
         DEFAULT_LINE_STATE,
@@ -30,7 +20,7 @@ static line_state_t lines[10] = {
 #undef DEFAULT_LINE_STATE
 
 void install_line(uint8_t line, sensor_value_t threshold) {
-    if (!(0 <= line && line <= LEN(lines))) return; // todo: report error
+    if (!IS_VALID_LINE(line)) return; // todo: report error
 
 #define zero_sample (sample_t) {.reading = 0, .stamp  = 0}
     for (int i = 0; i < LEN(lines); i++) {
@@ -46,7 +36,7 @@ void install_line(uint8_t line, sensor_value_t threshold) {
 }
 
 bool update_sensor_state(const uint8_t line, const sample_t latest, feedback_message_t *const msg) {
-    if (!(0 <= line && line <= LEN(lines))) return false; // todo: report error
+    if (!IS_VALID_LINE(line)) return false; // todo: report error
 
     struct line_sensor *const s = &lines[line].sensor;
     struct line_valve *const v = &lines[line].valve;

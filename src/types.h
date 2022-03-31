@@ -5,6 +5,7 @@
 #ifndef BARISTAUBOT_TYPES_H
 #define BARISTAUBOT_TYPES_H
 
+#include "stdbool.h"
 #include "stdint.h"
 #include "time.h"
 
@@ -12,7 +13,10 @@
 
 #define LEN(arr) (sizeof(arr) / sizeof(*(arr)))
 
-typedef uint8_t sensor_value_t;
+#define NUM_LINES 10
+#define IS_VALID_LINE(x) (0 <= (x) && (x) < NUM_LINES)
+
+typedef uint16_t sensor_value_t;
 
 typedef struct sample {
     sensor_value_t reading;
@@ -36,5 +40,9 @@ typedef struct line_state {
 typedef enum valve_position {
     OPEN = 0, CLOSE = 1;
 } valve_position_t;
+
+typedef enum result {
+    SUCCESS = 0, FAILIURE = 1 // bool
+} result_t;
 
 #endif //BARISTAUBOT_TYPES_H
