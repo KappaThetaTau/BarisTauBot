@@ -11,11 +11,38 @@
     }
   },
   "paused": false,
-  "orders": {},
+  "orders": {
+    "eZr2": {
+      "user": "+14089216032",
+      "time": 1649313461963,
+      "drink": {
+        "name": "Chocolate Milk",
+        "ingredients": [
+          {
+            "name": "Nesquik Powder",
+            "ratio": 0.1
+          },
+          {
+            "name": "Milk",
+            "ratio": 0.9
+          }
+        ]
+      },
+      "status": "created"
+    },
+    "jrFG": {
+      "user": "+14089216032",
+      "time": 1649313995127
+    }
+  },
   "orders by user": {
     "+16305452222": [
       "GxMr",
       "DVre"
+    ],
+    "+14089216032": [
+      "eZr2",
+      "jrFG"
     ]
   },
   "bottles": {

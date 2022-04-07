@@ -1,4 +1,5 @@
-// TODO: better admin and rpi authentication
+// TODO: alert admins/kunal with line number that ran out / other significant errors
+// TODO: ping RPI *and* ping ESP32s
 const store = require('data-store')({ path: process.cwd() + '/db.json' }, {
   'ingredients': {'Nesquik Powder': {rate: 0.2}, 'Milk': {rate: 0.5}, 'Orange Juice': {rate: 0.4}},
   'paused': false,
@@ -121,7 +122,7 @@ app.post('/sms', (req, res) => {
   } else if (body.toLowerCase() === 'order') {
     let orderID = createOrder(from);
     console.log(`Order ID ${orderID} generated for ${from}`);
-    response = `http://a2b2-130-126-255-204.ngrok.io/${orderID}`;
+    response = `http://c6f8-172-58-136-85.ngrok.io/${orderID}`;
   } else if (body.toLowerCase() === 'status') {
     let userOrders = ordersByUser[from];
     for (orderID of userOrders) {

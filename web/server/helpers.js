@@ -31,7 +31,7 @@ function submitOrder(orderID, drinkName, drinkIngredients) {
     	ingredients: drinkIngredients
     };
     order.status = 'created';
-    twilio.sendSMS(`Order #${orderID} received!\nText STATUS for updates!`, order.from);
+    twilio.sendSMS(`Order #${orderID} received!\nText STATUS for updates!`, order.user);
 }
 
 module.exports = {UID_REGEX_PATTERN, orderExists, createOrder, submitOrder, generateUID };
