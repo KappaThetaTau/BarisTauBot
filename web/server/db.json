@@ -1,0 +1,35 @@
+{
+  "ingredients": {
+    "Nesquik Powder": {
+      "rate": 0.2
+    },
+    "Milk": {
+      "rate": 0.5
+    },
+    "Orange Juice": {
+      "rate": 0.4
+    }
+  },
+  "paused": false,
+  "orders": {},
+  "orders by user": {
+    "+16305452222": [
+      "GxMr",
+      "DVre"
+    ]
+  },
+  "bottles": {
+    "1": "Nesquik Powder",
+    "2": "Milk",
+    "3": "Orange Juice",
+    "4": "",
+    "5": "",
+    "6": "",
+    "7": "",
+    "8": "",
+    "9": "",
+    "10": ""
+  },
+  "sidToPhone": {},
+  "admins": "+16305452222"
+}

@@ -10,56 +10,46 @@
 <body>
 <div class="header">
 	<h1>Admin Panel</h1>
-	<p>Status: Offline</p>
+	<h3 style="display: inline-block; margin-right: 5px;">Status:</h3><p style="display: inline;"><span class="status">Robot</span> / <span class="status">SMS</span> / <span class="status">Socket</span></p>
 </div>
-<div class="container"></div>
+<div class="content">
+<button class="collapsible">Bottles</button>
+<div class="container bottle"></div>
+<br>
+<button class="collapsible">Ingredients List</button>
+<div class="container ingredients">
+	<textarea></textarea>
+</div>
+<br>
+<button class="collapsible">Queue</button>
+<div class="container queue">
+	<table>
+		<tbody>
+		<tr>
+			<th>From</th>
+			<th>Drink</th>
+			<th>Placed</th>
+			<th></th>
+		</tr>
+		<tr>
+			<td>+16305452222</td>
+			<td>Virgin Pina Colada</td>
+			<td>2m ago</td>
+			<td>👍👎</td>
+		</tr>
+		</tbody>
+	</table>
+</div>
+<br>
 <button class="update" onclick="update()">Push Changes</button>
-<button class="pause" onclick="alert('todo')">Pause Orders</button>
+<button class="pause" onclick="togglePause()">...</button>
+<button class="refresh" onclick="refresh()" style="font-size: 1rem;">Refresh ⟲</button>
+</div>
 <div class="footer">
 	<p>Text Andrew with questions <a style="text-decoration: underline; color: inherit;" href="sms:1-630-545-2222">+1 (630) 545-2222</a></p>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script>
-var socket = io();
-const NUM_BOTTLES = 9;
-var container = document.querySelector('.container');
-
-socket.emit('fetch all ingredients', ingredients => {
-	console.log(ingredients);
-	for (var i = 0; i < NUM_BOTTLES; i++) {
-		let n = i + 1;
-		var selectHTML = `<span><span>Bottle ${n}: </span><select name="bottle${n}" id="bottle${n}"><option value=''>--- Empty ---</option></span>`;
-		for (x of ingredients) {
-			selectHTML += `<option>${x}</option>`;
-		}
-		selectHTML += `</select><br>`;
-		container.innerHTML += selectHTML;
-	}
-});
-
-socket.on('bottle statuses', bottles => {
-	window.bottles = bottles;
-	for (let key of Object.keys(bottles)) {
-		let select = document.querySelector(`[name=bottle${key}]`);
-		let opts = Array.from(select.options);
-		for (let opt of opts) {
-			if (opt.value == bottles[key]) {
-				opt.selected = true;
-				break;
-			}
-		}
-	}
-});
-
-function update() {
-	for (let key of Object.keys(bottles)) {
-		let select = document.querySelector(`[name=bottle${key}]`);
-		let opt = select.selectedOptions[0];
-		bottles[key] = opt.value;
-	}
-	socket.emit('update bottles', bottles);
-}
-</script>
+<script src="js/admin.js"></script>
 </body>
 </html>

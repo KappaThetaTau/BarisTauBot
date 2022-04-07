@@ -1,13 +1,13 @@
 const twilio = require('./twilio.js');
-const UID_REGEX = /^[a-zA-Z0-9]{4}$/;
-const UID_REGEX_PATTERN = UID_REGEX.toString().match(/\/\^(.*)\$\//)[1];
+const UID_REGEX = /^[a-zA-Z0-9]+$/;
+const UID_REGEX_PATTERN = '[a-zA-Z0-9]{4}';
 
-function generateUID(ids) {
+function generateUID(ids, len=4) {
 	let id = '';
-	for (let i = 0; i < 4; i++) {
+	for (let i = 0; i < len; i++) {
 		id += String.fromCharCode(Math.floor(48 + Math.random()*74));
 	}
-	if (ids.includes(id) || !UID_REGEX.test(id)) return generateUID(ids);
+	if (ids.includes(id) || !UID_REGEX.test(id)) return generateUID(ids, len);
 	return id;
 }
 
@@ -18,7 +18,7 @@ function orderExists(orderID) {
 
 function createOrder(from) {
 	let orderID = generateUID(Object.keys(orders));
-    orders[orderID] = {user: from};
+    orders[orderID] = {user: from, time: Date.now()};
     if (!ordersByUser[from]) ordersByUser[from] = [];
     ordersByUser[from].push(orderID);
     return orderID;
@@ -34,4 +34,4 @@ function submitOrder(orderID, drinkName, drinkIngredients) {
     twilio.sendSMS(`Order #${orderID} received!\nText STATUS for updates!`, order.from);
 }
 
-module.exports = {UID_REGEX_PATTERN, orderExists, createOrder, submitOrder };
+module.exports = {UID_REGEX_PATTERN, orderExists, createOrder, submitOrder, generateUID };

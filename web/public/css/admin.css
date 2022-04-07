@@ -1,5 +1,55 @@
-/*.container {*/
-/*}*/
+table button {
+	margin: 0;
+}
+
+table button:first-of-type {
+	margin-right: 0.25rem;
+}
+
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  /*width: 100%;*/
+  display: inline-block;
+}
+
+td, th {
+  border: 1px solid rgba(101, 26, 20, 0.1);
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: rgba(101, 26, 20, 0.1);
+}
+
+textarea {
+	margin: 0.25rem;
+}
+
+div.content {
+	/*background: yellow;*/
+	overflow: scroll;
+	height: calc(100vh - 13rem);
+}
+
+.collapsible:not(.active)::after {
+	content: ' [+]';
+}
+
+.collapsible.active::after {
+	content: ' [-]';
+}
+
+.collapsible {
+	margin: 0.25rem;
+	margin-top: 0.5rem;
+	display: inline-block;
+}
+
+.container {
+	display: none;
+}
 
 .container span {
 	/*background: yellow;*/
@@ -18,4 +68,19 @@ button.update {
 button.pause {
   background: rgb(101, 26, 20);
   color: rgb(208, 163, 63);
+}
+
+.status:not(.offline):not(.online):after {
+	content: '🟠';
+	margin-left: 5px;
+}
+
+.status.offline::after {
+	content: '🔴';
+	margin-left: 5px;
+}
+
+.status.online::after {
+	content: '🟢';
+	margin-left: 5px;
 }

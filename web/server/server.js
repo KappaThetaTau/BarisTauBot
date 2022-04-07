@@ -1,5 +1,14 @@
+// TODO: better admin and rpi authentication
+const store = require('data-store')({ path: process.cwd() + '/db.json' }, {
+  'ingredients': {'Nesquik Powder': {rate: 0.2}, 'Milk': {rate: 0.5}, 'Orange Juice': {rate: 0.4}},
+  'paused': false,
+  'orders': {},
+  'orders by user': {},
+  'bottles': { 1: 'Nesquik Powder', 2: 'Milk', 3: 'Orange Juice', 4: '', 5: '', 6: '', 7: '', 8: '', 9: '', 10: '' },
+  'sidToPhone': {}
+});
 const twilio = require('./twilio.js');
-const { UID_REGEX_PATTERN, orderExists, createOrder, submitOrder } = require('./helpers.js');
+const { UID_REGEX_PATTERN, orderExists, createOrder, submitOrder, generateUID } = require('./helpers.js');
 const express = require('express');
 const app = express();
 const http = require('http');
@@ -7,26 +16,49 @@ const server = http.createServer(app);
 const { Server } = require('socket.io');
 const io = new Server(server);
 const port = 3000;
+const session = require('express-session');
+const RedisStore = require("connect-redis")(session);
+const { createClient } = require("redis");
+let redisClient = createClient({ legacyMode: true });
+redisClient.connect().catch(console.error);
 
-// orders = {
-//   'Chjo': {
-//     user: '+16305452222',
-//     status: 'created'
-//   }
-// }
-// ordersByUser = {
-//   '+16305452222': ['Chjo']
-// }
-orders = {};
-ordersByUser = {};
-all_ingredients = ['Nesquik Powder', 'Milk', 'Orange Juice'];
-bottles = {
-  1: 'Nesquik Powder',
-  2: 'Milk',
-  3: 'Orange Juice',
-  4: '', 5: '', 6: '', 7: '', 8: '', 9: ''
-};
-available_ingredients = Object.values(bottles).filter(x => x);
+var codes = {};
+
+const admins = require('./admins.js');
+
+var rpiConnected = false;
+
+loadSave();
+
+setInterval(save, 60 * 1000); // save every 60s
+
+function save() {
+  store.set('ingredients', all_ingredients);
+  store.set('paused', orders_paused);
+  store.set('orders', orders);
+  store.set('orders by user', ordersByUser);
+  store.set('bottles', bottles);
+  store.set('bottles', bottles);
+}
+
+function loadSave() {
+  all_ingredients = store.get('ingredients');
+  orders_paused = store.get('paused');
+  orders = store.get('orders');
+  ordersByUser = store.get('orders by user');
+  bottles = store.get('bottles');
+  available_ingredients = Object.values(bottles).filter(x => x);
+  sidToPhone = store.get('sidToPhone');
+}
+
+var sessionMiddleware = session({
+  store: new RedisStore({client: redisClient}),
+  resave: false,
+  saveUninitialized: true,
+  secret: 'kasjdlkasjdlkasj'
+});
+
+app.use(sessionMiddleware);
 
 app.use(express.json());
 app.use(express.urlencoded({extended:false}))
@@ -34,6 +66,8 @@ app.use(express.urlencoded({extended:false}))
 app.use(express.static('../public'));
 
 app.get('/admin', (req, res) => {
+  // req.session.clientId = 5;
+  // console.log(req.session);
   res.sendFile(`admin.html`, { root: `${__dirname}/../public` });
 });
 
@@ -48,6 +82,7 @@ app.post(`/order/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
   let orderID = req.params.orderID;
   let [drinkName, drinkIngredients] = [req.body.name, req.body.ingredients];
   if (!orderExists(orderID) || typeof drinkName !== 'string' || !Array.isArray(drinkIngredients)) return res.status(400).send('Request not formatted correctly');
+  if (orders_paused) return res.status(400).send('Ordering is currently paused');
   let ratioSum = 0;
   drinkIngredients = drinkIngredients.filter(x => x.name && x.ratio).map(x => { return { name: x.name, ratio: x.ratio } });
   for (x of drinkIngredients) {
@@ -62,6 +97,7 @@ app.post(`/order/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
   if (!drinkIngredients.length) return res.status(400).send('No ingredients supplied');
   if (ratioSum != 1) return res.status(400).send('Ingredient ratios do not sum to 100%');
   submitOrder(orderID, drinkName, drinkIngredients);
+  adminNS.emit('queue update', formatQueue());
   // console.log('New order:', orderID, drinkName, drinkIngredients);
   res.sendStatus(200);
 });
@@ -69,13 +105,23 @@ app.post(`/order/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
 app.post('/sms', (req, res) => {
   let from = req.body.From;
   let body = req.body.Body;
+  if (req.body.ping) return res.sendStatus(200); // ping
+  else if (!from || !body) return res.sendStatus(400);
   console.log(`Message from: ${from}\nContent: ${body}`);
 
   let response = '';
-  if (body.toLowerCase() === 'order') {
+  if (Object.values(codes).includes(body.trim())) {
+    for (let sid of Object.keys(codes)) {
+      if (codes[sid] == body.trim()) {
+        codes[sid] = from;
+        break;
+      }
+    }
+    response = 'Number successfully tied to session';
+  } else if (body.toLowerCase() === 'order') {
     let orderID = createOrder(from);
     console.log(`Order ID ${orderID} generated for ${from}`);
-    response = `http://038e-96-63-255-28.ngrok.io/${orderID}`;
+    response = `http://a2b2-130-126-255-204.ngrok.io/${orderID}`;
   } else if (body.toLowerCase() === 'status') {
     let userOrders = ordersByUser[from];
     for (orderID of userOrders) {
@@ -92,9 +138,87 @@ app.post('/sms', (req, res) => {
   res.end(twilio.generateReply(response));
 });
 
-io.on('connection', socket => {
+const adminNS = io.of('/admin');
+const userNS = io.of('/');
+const rpiNS = io.of('/rpi');
+
+adminNS.use(function(socket, next) {
+  sessionMiddleware(socket.request, socket.request.res || {}, next);
+});
+
+// no idea why i did adminNS.use instead of doing this on connect
+adminNS.use((socket, next) => {
+  next(); // DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!
+  return; // DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!
+  let id = socket.request.session.id;
+  let phone = sidToPhone[id];
+  if (!phone && codes[id] && codes[id][0] == '+') {
+    phone = sidToPhone[id] = codes[id];
+    delete codes[id];
+  }
+  if (!phone) {
+    let sids = Object.keys(codes);
+    let code = false;
+    if (!sids.includes(id)) {
+      code = generateUID([], 6); // TODO: make sure this is unique
+      codes[id] = code;
+    } else {
+      code = codes[id];
+    }
+    throw new Error(`Text ${code} to 231-BAR-ISTA to gain admin rights.`);
+  }
+  if (!admins.includes(phone)) throw new Error('You are not an admin.');
+  next();
+});
+
+userNS.on('connection', socket => {
   console.log('A user connected.');
   socket.emit('available ingredients', available_ingredients);
+});
+
+rpiNS.on('connection', socket => {
+  if (socket.handshake.auth.token !== '_G`8z"vGu]4m)y}C') {
+    console.log(socket.handshake.auth);
+    console.log('Unauthorized RPI connection attempt');
+    return socket.disconnect();
+  }
+  console.log('Raspberry Pi connected.');
+  rpiConnected = true;
+  socket.on('disconnect', () => {
+    console.log('Raspberry Pi disconnected.');
+    rpiConnected = false;
+  });
+});
+
+function formatQueue() {
+  return Object.keys(orders).filter(x => orders[x].status && orders[x].status == 'created').map(x => {
+    let val = orders[x];
+    return {
+      id: x,
+      from: val.user,
+      drink: val.drink.name,
+      time: val.time
+    };
+  });
+}
+
+adminNS.on('connection', socket => {
+  // console.log(socket.request.session);
+  console.log('An admin connected.');
+
+  socket.emit('queue update', formatQueue());
+
+  socket.on('approve order', id => {
+    delete orders[id];
+    // todo: EXECUTE ORDER!
+    // todo: send status update SMS / change order status
+    socket.emit('queue update', formatQueue());    
+  });
+  socket.on('reject order', id => {
+    delete orders[id];
+    // todo: send status update SMS / change order status
+    socket.emit('queue update', formatQueue());
+  });
 
   socket.on('fetch all ingredients', callback => {
     callback(all_ingredients);
@@ -103,6 +227,23 @@ io.on('connection', socket => {
 
   socket.on('update bottles', bottles_ => {
     bottles = bottles_;
+  });
+
+  socket.on('update ingredients', json => {
+    all_ingredients = json;
+  });
+
+  socket.on('set pause', pause => {
+    orders_paused = pause;
+    console.log(`Orders ${pause ? 'paused' : 'unpaused'}!`);
+  });
+
+  socket.on('pause status', callback => {
+    callback(orders_paused);
+  });
+
+  socket.on('robot ping', callback => {
+    callback(rpiConnected);
   });
 });
 
