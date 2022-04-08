@@ -1,9 +1,10 @@
 // TODO: alert admins/kunal with line number that ran out / other significant errors
 // TODO: ping RPI *and* ping ESP32s
 require('dotenv').config();
+const logger = require('./logger.js');
 const PROD = process.env.ENV == 'PROD';
 const store = require('data-store')({ path: process.cwd() + '/db.json' }, {
-  'ingredients': {'Nesquik Powder': {rate: 0.2}, 'Milk': {rate: 0.5}, 'Orange Juice': {rate: 0.4}},
+  'ingredients': {'Nesquik Powder': {rate: 20}, 'Milk': {rate: 50}, 'Orange Juice': {rate: 40}},
   'paused': false,
   'orders': {},
   'orders by user': {},
@@ -35,6 +36,9 @@ redisClient.connect().catch(console.error);
 
 var codes = {};
 
+const CUP_VOLUME = 200; // mL
+logger.sys(`Cup volume is ${CUP_VOLUME} mL`);
+
 const admins = require('./admins.js');
 
 loadSave();
@@ -42,6 +46,7 @@ loadSave();
 setInterval(save, 60 * 1000); // save every 60s
 
 function save() {
+  logger.debug(`Saving state to db.json`);
   store.set('ingredients', all_ingredients);
   store.set('paused', orders_paused);
   store.set('orders', orders);
@@ -84,15 +89,12 @@ app.use(express.urlencoded({extended:false}))
 app.use(express.static('../public'));
 
 app.get('/admin', (req, res) => {
-  // req.session.clientId = 5;
-  // console.log(req.session);
   res.sendFile(`admin.html`, { root: `${__dirname}/../public` });
 });
 
 app.get(`/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
   let orderID = req.params.orderID;
   if (!orderExists(orderID)) return res.sendStatus(404);
-  // res.send(orders[orderID]);
   res.sendFile(`index.html`, { root: `${__dirname}/../public` });
 });
 
@@ -116,7 +118,7 @@ app.post(`/order/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
   if (ratioSum != 1) return res.status(400).send('Ingredient ratios do not sum to 100%');
   submitOrder(orderID, drinkName, drinkIngredients);
   adminNS.emit('queue update', formatQueue());
-  // console.log('New order:', orderID, drinkName, drinkIngredients);
+  logger.info(`Order for "${drinkName}" placed by ${orders[orderID].user}`);
   res.sendStatus(200);
 });
 
@@ -125,7 +127,7 @@ app.post('/sms', (req, res) => {
   let body = req.body.Body;
   if (req.body.ping) return res.sendStatus(200); // ping
   else if (!from || !body) return res.sendStatus(400);
-  console.log(`Message from: ${from}\nContent: ${body}`);
+  logger.debug(`SMS received from ${from} with body: ${body}`);
 
   let response = '';
   if (Object.values(codes).includes(body.trim())) {
@@ -144,7 +146,6 @@ app.post('/sms', (req, res) => {
     let userOrders = ordersByUser[from];
     for (orderID of userOrders) {
       let order = orders[orderID];
-      // response += `Order #${orderID} status: ${order.status}\n`;
       response += `Your ${order.drink.name} is ${order.status == 'created' ? 'still in the queue!' : '???'}\n`;
     }
     response = response.trim();
@@ -152,7 +153,7 @@ app.post('/sms', (req, res) => {
 
   if (!response) return;
   res.writeHead(200, {'Content-Type': 'text/xml'});
-  console.log(`Sending message: "${response}" to ${from}`);
+  logger.debug(`Replying to ${from} with message: ${response}`);
   res.end(twilio.generateReply(response));
 });
 
@@ -166,8 +167,6 @@ adminNS.use(function(socket, next) {
 
 // no idea why i did adminNS.use instead of doing this on connect
 adminNS.use((socket, next) => {
-  next(); // DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!
-  return; // DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!DELETE!!!!! FOR TESTING!!!!
   let id = socket.request.session.id;
   let phone = sidToPhone[id];
   if (!phone && codes[id] && codes[id][0] == '+') {
@@ -196,6 +195,7 @@ userNS.on('connection', socket => {
 
 function makeDrink(drink={
         "name": "Chocolate Milk","ingredients": [{"name": "Nesquik Powder","ratio": 0.1},{"name": "Milk","ratio": 0.9}]}) {
+  logger.info(`Making drink: ${drink.name}`);
   for (let ing of drink.ingredients) {
     let line_index;
     for (let line of Object.keys(bottles)) {
@@ -206,7 +206,12 @@ function makeDrink(drink={
     }
     if (!line_index) throw new Error(`Error trying to make drink. Ingredient "${ing.name}" not in a bottle.`);
 
-    flow_duration = 1000;
+    let vol = CUP_VOLUME * ing.ratio; // mL
+    let rate = all_ingredients[ing.name].rate; // mL/s
+
+    let flow_duration = vol / rate * 1000;
+
+    logger.debug(`Pour request for "${ing.name}" on line ${line_index} (zero-indexed) for ${flow_duration}ms`);
 
     rpiSocket.emit('pour request', { line_index, flow_duration });
   }
@@ -218,14 +223,14 @@ rpiNS.on('connection', socket => {
     console.log('Unauthorized RPI connection attempt');
     return socket.disconnect();
   }
-  console.log('Raspberry Pi connected.');
+  logger.sys('Raspberry Pi connected.');
   rpiSocket = socket;
-  makeDrink();
+  // makeDrink();
 
   socket.emit('connection acknowledged');
 
   socket.on('disconnect', () => {
-    console.log('Raspberry Pi disconnected.');
+    logger.sys('Raspberry Pi disconnected.');
     rpiSocket = false;
   });
 });
@@ -244,18 +249,20 @@ function formatQueue() {
 
 adminNS.on('connection', socket => {
   // console.log(socket.request.session);
-  console.log('An admin connected.');
+  logger.debug('An admin connected.');
 
   socket.emit('queue update', formatQueue());
 
   socket.on('approve order', id => {
+    logger.debug(`Order #${id} approved`);
+    makeDrink(orders[id]);
     delete orders[id];
-    // todo: EXECUTE ORDER!
     // todo: send status update SMS / change order status
     socket.emit('queue update', formatQueue());    
   });
   socket.on('reject order', id => {
     delete orders[id];
+    logger.debug(`Order #${id} rejected`);
     // todo: send status update SMS / change order status
     socket.emit('queue update', formatQueue());
   });
@@ -266,16 +273,18 @@ adminNS.on('connection', socket => {
   });
 
   socket.on('update bottles', bottles_ => {
+    logger.debug(`Bottle configuration updated`);
     bottles = bottles_;
   });
 
   socket.on('update ingredients', json => {
+    logger.debug(`Ingredients updated`);
     all_ingredients = json;
   });
 
   socket.on('set pause', pause => {
     orders_paused = pause;
-    console.log(`Orders ${pause ? 'paused' : 'unpaused'}!`);
+    logger.sys(`Orders ${pause ? 'paused' : 'unpaused'}!`);
   });
 
   socket.on('pause status', callback => {
@@ -288,11 +297,11 @@ adminNS.on('connection', socket => {
 });
 
 httpServer.listen(PROD ? 80 : port, () => {
-  console.log(`Listening on port ${PROD ? 80 : port}`);
+  if (!PROD) logger.sys(`Server listening on port ${port}`);
 });
 
 if (PROD) {
   httpsServer.listen(443, () => {
-    console.log('HTTPS Server running on port 443');
+    logger.sys(`Server listening on port 443`);
   });
 }

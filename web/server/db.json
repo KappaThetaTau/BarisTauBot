@@ -1,13 +1,13 @@
 {
   "ingredients": {
     "Nesquik Powder": {
-      "rate": 0.2
+      "rate": 20
     },
     "Milk": {
-      "rate": 0.5
+      "rate": 50
     },
     "Orange Juice": {
-      "rate": 0.4
+      "rate": 40
     }
   },
   "paused": false,
