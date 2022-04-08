@@ -8,6 +8,8 @@ socket.on('connect_error', err => {
 
 const NUM_BOTTLES = 10;
 var bottleContainer = document.querySelector('.container.bottle');
+var servoContainer = document.querySelector('.container.servo');
+var dataContainer = document.querySelector('.container.data');
 var pauseBtn = document.querySelector('.pause');
 
 var collapseBtns = Array.from(document.querySelectorAll('.collapsible'));
@@ -27,8 +29,7 @@ function refresh() {
 	socket.emit('fetch all ingredients', ingredients => {
 		bottleContainer.innerHTML = '';
 		for (var i = 0; i < NUM_BOTTLES; i++) {
-			let n = i + 1;
-			var selectHTML = `<span><span>Bottle ${n}: </span><select name="bottle${n}" id="bottle${n}"><option value=''>--- Empty ---</option></span>`;
+			var selectHTML = `<span><span>Line ${i}: </span><select name="line${i}" id="line${i}"><option value=''>--- Empty ---</option></span>`;
 			for (let x of Object.keys(ingredients)) {
 				selectHTML += `<option>${x}</option>`;
 			}
@@ -37,6 +38,13 @@ function refresh() {
 		}
 
 		textArea.value = ingredientsAsString(ingredients);
+	});
+	socket.emit('fetch servo angles', angles => {
+		servoContainer.innerHTML = '';
+		for (var i = 0; i < NUM_BOTTLES; i++) {
+			var inputHTML = `Line ${i} Open Angle <input id="line${i}open" type="number" min="0" max="180" step="1" value="180"><br>Line ${i} Closed Angle <input id="line${i}closed" type="number" min="0" max="180" step="1" value="0"><br><br>`;
+			servoContainer.insertAdjacentHTML('beforeEnd', inputHTML);
+		}
 	});
 	socket.emit('pause status', paused => {
 		pauseBtn.innerText = paused ? 'Unpause Orders' : 'Pause Orders';
@@ -73,7 +81,7 @@ function togglePause() {
 socket.on('bottle statuses', bottles => {
 	window.bottles = bottles;
 	for (let key of Object.keys(bottles)) {
-		let select = document.querySelector(`[name=bottle${key}]`);
+		let select = document.querySelector(`[name=line${key}]`);
 		let opts = Array.from(select.options);
 		for (let opt of opts) {
 			if (opt.value == bottles[key]) {
@@ -83,16 +91,6 @@ socket.on('bottle statuses', bottles => {
 		}
 	}
 });
-
-
-// queue_ = [{
-// 	id: 'PzAz',
-// 	from: '+16305452222',
-// 	drink: 'Virgin Pina Colada',
-// 	time: Date.now()
-// }];
-
-// createQueueTable(queue_);
 
 function createQueueTable(queue) {
 	let tbody = document.querySelector('.container.queue table tbody');
@@ -112,9 +110,26 @@ socket.on('queue update', queue => {
 	createQueueTable(queue);
 });
 
+function createDataTable(data) {
+	let tbody = document.querySelector('.container.data table tbody');
+	tbody.innerHTML = '<tr><th>Line</th><th>Capacitance</th><th>State</th><th>250ms Pour</th></tr>';
+	for (let i in data) {
+		let item = data[i];
+		if (!item) item = {line: '?', cap: '?', state: '?'};
+		tbody.insertAdjacentHTML('beforeEnd', `<tr><td>${i}</td><td>${item.cap}</td><td>${item.state}</td><td style="display: flex; justify-content: center;"><button style="background: lightblue">💦</button></td></tr>`);
+		let btn = tbody.lastChild.querySelector('button');
+		btn.addEventListener('click', () => {
+			socket.emit('quick pour', i);
+		});
+	}
+}
+socket.on('data update', data => {
+	createDataTable(data);
+});
+
 function update() {
 	for (let key of Object.keys(bottles)) {
-		let select = document.querySelector(`[name=bottle${key}]`);
+		let select = document.querySelector(`[name=line${key}]`);
 		let opt = select.selectedOptions[0];
 		bottles[key] = opt.value;
 	}
@@ -125,6 +140,15 @@ function update() {
 		return;
 	}
 
+	let servoAngles = {};
+	for (let key of Object.keys(bottles)) {
+		let openInput = document.querySelector(`#line${key}open`);
+		let closedInput = document.querySelector(`#line${key}closed`);
+		let [open, closed] = [openInput.value, closedInput.value];
+		servoAngles[key] = [open, closed];
+	}
+
+	socket.emit('update servo angles', servoAngles);
 	socket.emit('update ingredients', ingredientsJSON);
 	socket.emit('update bottles', bottles);
 }
