@@ -1,5 +1,7 @@
 // TODO: alert admins/kunal with line number that ran out / other significant errors
 // TODO: ping RPI *and* ping ESP32s
+require('dotenv').config();
+const PROD = process.env.ENV == 'PROD';
 const store = require('data-store')({ path: process.cwd() + '/db.json' }, {
   'ingredients': {'Nesquik Powder': {rate: 0.2}, 'Milk': {rate: 0.5}, 'Orange Juice': {rate: 0.4}},
   'paused': false,
@@ -13,9 +15,17 @@ const { UID_REGEX_PATTERN, orderExists, createOrder, submitOrder, generateUID } 
 const express = require('express');
 const app = express();
 const http = require('http');
-const server = http.createServer(app);
+const https = require('https');
+const httpServer = http.createServer(app);
+if (PROD) {
+  const httpsServer = https.createServer({
+    key: fs.readFileSync('/etc/letsencrypt/live/baristau.me/privkey.pem'),
+    cert: fs.readFileSync('/etc/letsencrypt/live/baristau.me/fullchain.pem'),
+  }, app);
+  const cors = require('cors');
+}
 const { Server } = require('socket.io');
-const io = new Server(server);
+const io = new Server(PROD ? httpsServer : httpServer);
 const port = 3000;
 const session = require('express-session');
 const RedisStore = require("connect-redis")(session);
@@ -26,8 +36,6 @@ redisClient.connect().catch(console.error);
 var codes = {};
 
 const admins = require('./admins.js');
-
-var rpiConnected = false;
 
 loadSave();
 
@@ -58,6 +66,15 @@ var sessionMiddleware = session({
   saveUninitialized: true,
   secret: 'kasjdlkasjdlkasj'
 });
+
+if (PROD) {
+  app.use(cors());
+
+  app.use((req, res, next) => {
+    if (!req.secure) return res.redirect(`https://${req.headers.host}${req.url}`);
+    next();
+  });
+}
 
 app.use(sessionMiddleware);
 
@@ -177,6 +194,24 @@ userNS.on('connection', socket => {
   socket.emit('available ingredients', available_ingredients);
 });
 
+function makeDrink(drink={
+        "name": "Chocolate Milk","ingredients": [{"name": "Nesquik Powder","ratio": 0.1},{"name": "Milk","ratio": 0.9}]}) {
+  for (let ing of drink.ingredients) {
+    let line_index;
+    for (let line of Object.keys(bottles)) {
+      if (bottles[line] == ing.name) {
+        line_index = line;
+        break;
+      }
+    }
+    if (!line_index) throw new Error(`Error trying to make drink. Ingredient "${ing.name}" not in a bottle.`);
+
+    flow_duration = 1000;
+
+    rpiSocket.emit('pour request', { line_index, flow_duration });
+  }
+}
+
 rpiNS.on('connection', socket => {
   if (socket.handshake.auth.token !== '_G`8z"vGu]4m)y}C') {
     console.log(socket.handshake.auth);
@@ -184,10 +219,14 @@ rpiNS.on('connection', socket => {
     return socket.disconnect();
   }
   console.log('Raspberry Pi connected.');
-  rpiConnected = true;
+  rpiSocket = socket;
+  makeDrink();
+
+  socket.emit('connection acknowledged');
+
   socket.on('disconnect', () => {
     console.log('Raspberry Pi disconnected.');
-    rpiConnected = false;
+    rpiSocket = false;
   });
 });
 
@@ -244,10 +283,16 @@ adminNS.on('connection', socket => {
   });
 
   socket.on('robot ping', callback => {
-    callback(rpiConnected);
+    callback(!!rpiSocket);
   });
 });
 
-server.listen(port, () => {
-  console.log(`Listening on port ${port}`);
+httpServer.listen(PROD ? 80 : port, () => {
+  console.log(`Listening on port ${PROD ? 80 : port}`);
 });
+
+if (PROD) {
+  httpsServer.listen(443, () => {
+    console.log('HTTPS Server running on port 443');
+  });
+}

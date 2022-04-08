@@ -19,5 +19,3 @@ function generateReply(body) {
 }
 
 module.exports = {sendSMS, generateReply};
-
-sendSMS('test', '+16305452222', '231-BARISTA');
