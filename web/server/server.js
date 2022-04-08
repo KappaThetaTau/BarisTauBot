@@ -1,6 +1,7 @@
 // TODO: alert admins/kunal with line number that ran out / other significant errors
 // TODO: ping RPI *and* ping ESP32s
 require('dotenv').config();
+const fs = require('fs');
 const logger = require('./logger.js');
 const PROD = process.env.ENV == 'PROD';
 const store = require('data-store')({ path: process.cwd() + '/db.json' }, {
