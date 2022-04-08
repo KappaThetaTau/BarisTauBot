@@ -39,6 +39,7 @@ const BASE_URL = process.env.BASE_URL;
 logger.sys(`Base url is ${BASE_URL}`);
 var codes = {};
 
+rpiSocket = false;
 const CUP_VOLUME = 200; // mL
 logger.sys(`Cup volume is ${CUP_VOLUME} mL`);
 
