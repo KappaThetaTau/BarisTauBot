@@ -12,7 +12,6 @@ function generateUID(ids, len=4) {
 }
 
 function orderExists(orderID) {
-	// console.log(orders);
 	return !!orders[orderID];
 }
 
@@ -31,6 +30,7 @@ function submitOrder(orderID, drinkName, drinkIngredients) {
     	ingredients: drinkIngredients
     };
     order.status = 'created';
+    // twilio.sendSMS(`Order #${orderID} received!\nText STATUS for updates!`, order.user);
     twilio.sendSMS(`Order #${orderID} received!\nText STATUS for updates!`, order.user);
 }
 

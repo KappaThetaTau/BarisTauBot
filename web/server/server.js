@@ -1,5 +1,7 @@
 // TODO: alert admins/kunal with line number that ran out / other significant errors
 // TODO: ping RPI *and* ping ESP32s
+// TODO: if order already placed, 404
+// TODO: shouldn't need to text ORDER again for a new order. old link still tied to phone number
 require('dotenv').config();
 const fs = require('fs');
 const logger = require('./logger.js');
@@ -142,7 +144,8 @@ app.post('/sms', (req, res) => {
   } else if (body.toLowerCase() === 'order') {
     let orderID = createOrder(from);
     response = `${BASE_URL}/${orderID}`;
-  } else if (body.toLowerCase() === 'status') {
+  }
+  else if (body.toLowerCase() === 'status') {
     let userOrders = ordersByUser[from];
     for (orderID of userOrders) {
       let order = orders[orderID];
@@ -191,6 +194,10 @@ adminNS.use((socket, next) => {
 userNS.on('connection', socket => {
   console.log('A user connected.');
   socket.emit('available ingredients', available_ingredients);
+
+  socket.on('invalid order?', id, callback => {
+    callback(!orders[id] || orders.status);
+  });
 });
 
 function makeDrink(drink={
