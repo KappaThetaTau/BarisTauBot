@@ -10,7 +10,7 @@ module.exports = {
 	debug: msg => {
 		console.log(chalk.bgCyan(`>>> DEBUG:`), msg);
 	},
-	server: msg => {
+	sys: msg => {
 		console.log(chalk.bgWhite(`>>> SYSTEM:`), msg);	
 	}
 };
