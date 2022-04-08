@@ -34,6 +34,7 @@ let redisClient = createClient({ legacyMode: true });
 redisClient.connect().catch(console.error);
 
 const BASE_URL = process.env.BASE_URL;
+logger.sys(`Base url is ${BASE_URL}`);
 var codes = {};
 
 const CUP_VOLUME = 200; // mL
@@ -140,7 +141,6 @@ app.post('/sms', (req, res) => {
     response = 'Number successfully tied to session';
   } else if (body.toLowerCase() === 'order') {
     let orderID = createOrder(from);
-    console.log(`Order ID ${orderID} generated for ${from}`);
     response = `${BASE_URL}/${orderID}`;
   } else if (body.toLowerCase() === 'status') {
     let userOrders = ordersByUser[from];
