@@ -33,6 +33,7 @@ const { createClient } = require("redis");
 let redisClient = createClient({ legacyMode: true });
 redisClient.connect().catch(console.error);
 
+const BASE_URL = process.env.BASE_URL;
 var codes = {};
 
 const CUP_VOLUME = 200; // mL
@@ -140,7 +141,7 @@ app.post('/sms', (req, res) => {
   } else if (body.toLowerCase() === 'order') {
     let orderID = createOrder(from);
     console.log(`Order ID ${orderID} generated for ${from}`);
-    response = `http://c6f8-172-58-136-85.ngrok.io/${orderID}`;
+    response = `${BASE_URL}/${orderID}`;
   } else if (body.toLowerCase() === 'status') {
     let userOrders = ordersByUser[from];
     for (orderID of userOrders) {
