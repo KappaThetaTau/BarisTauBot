@@ -204,8 +204,7 @@ userNS.on('connection', socket => {
   socket.emit('available ingredients', available_ingredients);
 });
 
-function makeDrink(drink={
-        "name": "Chocolate Milk","ingredients": [{"name": "Nesquik Powder","ratio": 0.1},{"name": "Milk","ratio": 0.9}]}) {
+function makeDrink(drink) {
   logger.info(`Making drink: ${drink.name}`);
   for (let ing of drink.ingredients) {
     let line_index;
@@ -281,7 +280,7 @@ adminNS.on('connection', socket => {
 
   socket.on('approve order', id => {
     logger.debug(`Order #${id} approved`);
-    makeDrink(orders[id]);
+    makeDrink(orders[id].drink);
     delete orders[id];
     // todo: send status update SMS / change order status
     adminNS.emit('queue update', formatQueue());    
