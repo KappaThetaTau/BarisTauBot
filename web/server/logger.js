@@ -7,6 +7,9 @@ module.exports = {
 	err: msg => {
 		console.log(chalk.bgYellow.red.bold(`>>> ERROR:`), msg);
 	},
+	warn: msg => {
+		console.log(chalk.red(`>>> WARN:`), msg);
+	},
 	debug: msg => {
 		console.log(chalk.bgCyan(`>>> DEBUG:`), msg);
 	},

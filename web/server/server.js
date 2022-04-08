@@ -1,8 +1,6 @@
 // TODO: alert admins/kunal with line number that ran out / other significant errors
 // TODO: ping RPI *and* ping ESP32s
-// TODO: if order already placed, 404
 // TODO: shouldn't need to text ORDER again for a new order. old link still tied to phone number
-// TODO*: admin page adjust open and close degrees
 require('dotenv').config();
 const fs = require('fs');
 const logger = require('./logger.js');
@@ -12,8 +10,10 @@ const store = require('data-store')({ path: process.cwd() + '/db.json' }, {
   'paused': false,
   'orders': {},
   'orders by user': {},
-  'bottles': { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '', 9: '', 10: '' },
-  'sidToPhone': {}
+  'bottles': { 0: '', 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '', 9: '' },
+  'sidToPhone': {},
+  'servo angles': { 0: [180, 0], 1: [180, 0], 2: [180, 0], 3: [180, 0], 4: [180, 0], 5: [180, 0], 6: [180, 0], 7: [180, 0], 8: [180, 0], 9: [180, 0] }, // [open, closed]
+  'capacitance thresholds': { 0: 1000, 1: 1000, 2: 1000, 3: 1000, 4: 1000, 5: 1000, 6: 1000, 7: 1000, 8: 1000, 9: 1000 }
 });
 const twilio = require('./twilio.js');
 const { UID_REGEX_PATTERN, orderExists, createOrder, submitOrder, generateUID } = require('./helpers.js');
@@ -40,6 +40,8 @@ const BASE_URL = process.env.BASE_URL;
 logger.sys(`Base url is ${BASE_URL}`);
 var codes = {};
 
+var rawData = [];
+
 rpiSocket = false;
 const CUP_VOLUME = 200; // mL
 logger.sys(`Cup volume is ${CUP_VOLUME} mL`);
@@ -58,6 +60,8 @@ function save() {
   store.set('orders by user', ordersByUser);
   store.set('bottles', bottles);
   store.set('bottles', bottles);
+  store.set('servo angles', servoAngles);
+  store.set('capacitance thresholds', capacitanceThresholds);
 }
 
 function loadSave() {
@@ -68,6 +72,8 @@ function loadSave() {
   bottles = store.get('bottles');
   available_ingredients = Object.values(bottles).filter(x => x);
   sidToPhone = store.get('sidToPhone');
+  servoAngles = store.get('servo angles');
+  capacitanceThresholds = store.get('capacitance thresholds');
 }
 
 var sessionMiddleware = session({
@@ -187,9 +193,9 @@ adminNS.use((socket, next) => {
     } else {
       code = codes[id];
     }
-    throw new Error(`Text ${code} to 231-BAR-ISTA to gain admin rights.`);
+    // throw new Error(`Text ${code} to 231-BAR-ISTA to gain admin rights.`); /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   }
-  if (!admins.includes(phone)) throw new Error('You are not an admin.');
+  // if (!admins.includes(phone)) throw new Error('You are not an admin.'); /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   next();
 });
 
@@ -218,7 +224,11 @@ function makeDrink(drink={
 
     logger.debug(`Pour request for "${ing.name}" on line ${line_index} (zero-indexed) for ${flow_duration}ms`);
 
-    rpiSocket.emit('pour request', { line_index, flow_duration });
+    if (!rpiSocket) {
+      logger.err(`Raspberry Pi socket not connected. Cannot send pour request to line ${line_index}`);
+    } else {
+      rpiSocket.emit('pour request', { line_index, flow_duration });
+    }
   }
 }
 
@@ -231,6 +241,16 @@ rpiNS.on('connection', socket => {
   logger.sys('Raspberry Pi connected.');
   rpiSocket = socket;
   // makeDrink();
+
+  socket.on('dump', data => {
+    for (let ack of data) {
+      let m = ack.match(/([0-9a-f]{2,4})/g);
+      if (!m || m.length != 3) return logger.warn(`Invalid dump: ${ack}`);
+      let [line, cap, state] = m.map(x => parseInt(x, 16));
+      rawData[line] = {cap, state: state ? 'Closed' : 'Open'};
+    }
+    adminNS.emit('data update', rawData);
+  });
 
   socket.emit('connection acknowledged');
 
@@ -257,19 +277,28 @@ adminNS.on('connection', socket => {
   logger.debug('An admin connected.');
 
   socket.emit('queue update', formatQueue());
+  socket.emit('data update', rawData);
 
   socket.on('approve order', id => {
     logger.debug(`Order #${id} approved`);
     makeDrink(orders[id]);
     delete orders[id];
     // todo: send status update SMS / change order status
-    socket.emit('queue update', formatQueue());    
+    adminNS.emit('queue update', formatQueue());    
   });
   socket.on('reject order', id => {
     delete orders[id];
     logger.debug(`Order #${id} rejected`);
     // todo: send status update SMS / change order status
-    socket.emit('queue update', formatQueue());
+    adminNS.emit('queue update', formatQueue());
+  });
+
+  socket.on('quick pour', line => {
+    if (!rpiSocket) {
+      logger.err(`Raspberry Pi socket not connected. Cannot quick pour on line ${line}`);
+    } else {
+      rpiSocket.emit('pour request', { line_index: parseInt(line), flow_duration: 250 });
+    }
   });
 
   socket.on('fetch all ingredients', callback => {
@@ -277,14 +306,35 @@ adminNS.on('connection', socket => {
     socket.emit('bottle statuses', bottles);
   });
 
+  socket.on('fetch servo angles', callback => {
+    callback(servoAngles);
+  });
+
   socket.on('update bottles', bottles_ => {
-    if (JSON.stringify(bottles_) === JSON.stringify(bottles)) logger.debug(`Bottle configuration updated`);
+    if (JSON.stringify(bottles_) !== JSON.stringify(bottles)) logger.debug(`Bottle configuration updated`);
     bottles = bottles_;
     available_ingredients = Object.values(bottles).filter(x => x);
   });
 
+  socket.on('update servo angles', angles => {
+    if (JSON.stringify(angles) !== JSON.stringify(servoAngles)) logger.debug(`Servo angles updated`);
+    for (let i in Object.keys(angles)) {
+      let [new_open, new_closed] = angles[i];
+      let [old_open, old_closed] = servoAngles[i];
+      if (new_open != old_open || new_closed != old_closed) {
+        logger.debug(`Sending install request to line ${i}. Open: ${new_open} deg / Closed: ${new_closed} deg / Cap: ${capacitanceThresholds[i]}`);
+        if (!rpiSocket) {
+          logger.err(`Raspberry Pi socket not connected. Cannot send install request to line ${i}`);
+        } else {
+          rpiSocket.emit('install request', {line_index: parseInt(i), open: parseInt(new_open), closed: parseInt(new_closed), cap: parseInt(capacitanceThresholds[i])});
+        }
+      }
+    }
+    servoAngles = angles;
+  });
+
   socket.on('update ingredients', json => {
-    if (JSON.stringify(json) === JSON.stringify(all_ingredients)) logger.debug(`Ingredients updated`);
+    if (JSON.stringify(json) !== JSON.stringify(all_ingredients)) logger.debug(`Ingredients updated`);
     all_ingredients = json;
   });
 
