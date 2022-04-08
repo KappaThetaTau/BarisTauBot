@@ -97,7 +97,7 @@ app.get('/admin', (req, res) => {
 
 app.get(`/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
   let orderID = req.params.orderID;
-  if (!orderExists(orderID)) return res.sendStatus(404);
+  if (!orderExists(orderID)) return res.redirect('/');
   res.sendFile(`index.html`, { root: `${__dirname}/../public` });
 });
 
@@ -192,12 +192,8 @@ adminNS.use((socket, next) => {
 });
 
 userNS.on('connection', socket => {
-  console.log('A user connected.');
+  // console.log('A user connected.');
   socket.emit('available ingredients', available_ingredients);
-
-  socket.on('invalid order?', id, callback => {
-    callback(!orders[id] || orders.status);
-  });
 });
 
 function makeDrink(drink={

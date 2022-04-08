@@ -9,12 +9,6 @@ if (!window.ORDER_ID) {
 	let el = document.querySelector('.menu-container');
 	el.innerHTML = 'Text ORDER to <a style="text-decoration: underline; color: inherit;" href="sms:1-231-227-4782&body=ORDER">231-BARISTA</a> to get started!';
 }
-socket.emit('invalid order?', window.ORDER_ID, invalid => {
-	if (invalid) {
-		let el = document.querySelector('.menu-container');
-		el.innerHTML = 'Text ORDER to <a style="text-decoration: underline; color: inherit;" href="sms:1-231-227-4782&body=ORDER">231-BARISTA</a> to get started!';
-	}
-});
 
 socket.on('available ingredients', ingredients => {
 	while (menu.firstChild) menu.firstChild.remove();
