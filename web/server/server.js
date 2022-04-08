@@ -2,6 +2,7 @@
 // TODO: ping RPI *and* ping ESP32s
 // TODO: if order already placed, 404
 // TODO: shouldn't need to text ORDER again for a new order. old link still tied to phone number
+// TODO*: admin page adjust open and close degrees
 require('dotenv').config();
 const fs = require('fs');
 const logger = require('./logger.js');
@@ -116,7 +117,7 @@ app.post(`/order/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
     // 'ratio' key must be a number with at most 2 decimal places (to avoid floating point errors with sum)
     if (!ratio || isNaN(ratio) || ratio != ratio.toFixed(2)) return res.sendStatus(400);
     if (!name) return res.status(400).send('Drink name not supplied');
-    if (!available_ingredients.includes(name)) return res.status(417).send('One or more of the ingredients are out of stock');
+    if (!available_ingredients.includes(name)) return res.status(417).send('One or more of the 
   }
   if (!drinkIngredients.length) return res.status(400).send('No ingredients supplied');
   if (ratioSum != 1) return res.status(400).send('Ingredient ratios do not sum to 100%');
@@ -277,12 +278,13 @@ adminNS.on('connection', socket => {
   });
 
   socket.on('update bottles', bottles_ => {
-    logger.debug(`Bottle configuration updated`);
+    if (JSON.stringify(bottles_) === JSON.stringify(bottles)) logger.debug(`Bottle configuration updated`);
     bottles = bottles_;
+    available_ingredients = Object.values(bottles).filter(x => x);
   });
 
   socket.on('update ingredients', json => {
-    logger.debug(`Ingredients updated`);
+    if (JSON.stringify(json) === JSON.stringify(all_ingredients)) logger.debug(`Ingredients updated`);
     all_ingredients = json;
   });
 
