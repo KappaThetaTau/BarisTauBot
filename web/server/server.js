@@ -117,7 +117,7 @@ app.post(`/order/:orderID(${UID_REGEX_PATTERN})`, (req, res) => {
     // 'ratio' key must be a number with at most 2 decimal places (to avoid floating point errors with sum)
     if (!ratio || isNaN(ratio) || ratio != ratio.toFixed(2)) return res.sendStatus(400);
     if (!name) return res.status(400).send('Drink name not supplied');
-    if (!available_ingredients.includes(name)) return res.status(417).send('One or more of the 
+    if (!available_ingredients.includes(name)) return res.status(417).send('One or more of the ingredients are out of stock');
   }
   if (!drinkIngredients.length) return res.status(400).send('No ingredients supplied');
   if (ratioSum != 1) return res.status(400).send('Ingredient ratios do not sum to 100%');
