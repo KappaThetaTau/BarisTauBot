@@ -2,6 +2,11 @@ var m = window.ORDER_ID = window.location.pathname.split('/')[1].match(/^([a-zA-
 // window.ORDER_ID = false; // don't delete
 window.ORDER_ID = m ? m[1] : false;
 
+if (!window.ORDER_ID) {
+	let el = document.querySelector('.menu-container');
+	el.innerHTML = 'Text ORDER to <a style="text-decoration: underline; color: inherit;" href="sms:1-231-227-4782">231-BARISTA</a> to get started!';
+}
+
 var socket = io();
 var menu = document.querySelector('#menu');
 
