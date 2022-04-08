@@ -4,14 +4,13 @@ window.ORDER_ID = m ? m[1] : false;
 
 if (!window.ORDER_ID) {
 	let el = document.querySelector('.menu-container');
-	el.innerHTML = 'Text ORDER to <a style="text-decoration: underline; color: inherit;" href="sms:1-231-227-4782">231-BARISTA</a> to get started!';
+	el.innerHTML = 'Text ORDER to <a style="text-decoration: underline; color: inherit;" href="sms:1-231-227-4782&body=ORDER">231-BARISTA</a> to get started!';
 }
 
 var socket = io();
 var menu = document.querySelector('#menu');
 
 socket.on('available ingredients', ingredients => {
-	console.log(ingredients);
 	while (menu.firstChild) menu.firstChild.remove();
 	let availableDrinks = Object.keys(drinks).filter(x => {
 		let ingredients_ = drinks[x].map(i => i.name);
@@ -33,7 +32,6 @@ socket.on('available ingredients', ingredients => {
 			item.classList.add('selected');
 		});
 	}
-	// console.log(availableDrinks);
 });
 
 function search() {
