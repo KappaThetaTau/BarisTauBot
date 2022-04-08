@@ -19,13 +19,11 @@ const app = express();
 const http = require('http');
 const https = require('https');
 const httpServer = http.createServer(app);
-if (PROD) {
-  const httpsServer = https.createServer({
+const httpsServer = PROD ? https.createServer({
     key: fs.readFileSync('/etc/letsencrypt/live/baristau.me/privkey.pem'),
     cert: fs.readFileSync('/etc/letsencrypt/live/baristau.me/fullchain.pem'),
-  }, app);
-  const cors = require('cors');
-}
+  }, app) : null;
+const cors = require('cors');
 const { Server } = require('socket.io');
 const io = new Server(PROD ? httpsServer : httpServer);
 const port = 3000;
