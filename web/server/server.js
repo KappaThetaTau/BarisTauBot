@@ -7,11 +7,11 @@ const fs = require('fs');
 const logger = require('./logger.js');
 const PROD = process.env.ENV == 'PROD';
 const store = require('data-store')({ path: process.cwd() + '/db.json' }, {
-  'ingredients': {'Nesquik Powder': {rate: 20}, 'Milk': {rate: 50}, 'Orange Juice': {rate: 40}},
+  'ingredients': require('./ingredients.js'),
   'paused': false,
   'orders': {},
   'orders by user': {},
-  'bottles': { 1: 'Nesquik Powder', 2: 'Milk', 3: 'Orange Juice', 4: '', 5: '', 6: '', 7: '', 8: '', 9: '', 10: '' },
+  'bottles': { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '', 9: '', 10: '' },
   'sidToPhone': {}
 });
 const twilio = require('./twilio.js');

@@ -16,12 +16,14 @@ def parse_feedback_response(res):
 	return (li, cap_before, start_lat, cap_during, stop_lat, cap_after)
 
 # uint8 line_index (0-9), uint16 capacitance_threshold (0-65535)
-def generate_install_request(line_index, cap_thresh):
+def generate_install_request(line_index, cap_thresh, open_deg, closed_deg):
 	line_bytes = bytes('{:02x}'.format(line_index), 'ascii')
 	cap_bytes = bytes('{:04x}'.format(cap_thresh), 'ascii')
-	return b'I ' + line_bytes + b' ' + cap_bytes + b'\n'
+	open_deg_bytes = bytes('{:02x}'.format(open_deg), 'ascii')
+	closed_deg_bytes = bytes('{:02x}'.format(closed_deg), 'ascii')
+	return b'I ' + line_bytes + b' ' + cap_bytes + b' ' + open_deg_bytes + b' ' + closed_deg_bytes + b'\n'
 
 # (line_index, capacitance_before, start_latency_msec, capacitance_during, stop_latency_msec, capacitance_after) = parse_feedback_response(b'F 09 0a9f 00000ff1 0b9a 00000fad 0aaf')
 # print(line_index)
 # print(generate_pour_request(9,0))
-print(generate_install_request(7, 8451))
+# print(generate_install_request(7, 8451))
